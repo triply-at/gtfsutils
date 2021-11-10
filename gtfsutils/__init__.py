@@ -1,4 +1,5 @@
 import os
+from numpy.lib.arraysetops import isin
 import pandas as pd
 import shapely.geometry
 import geopandas as gpd
@@ -52,15 +53,54 @@ def load_gtfs(filepath, subset=None):
     return df_dict
 
 
-def save_gtfs(df_dict, filepath, ignore_required=False):
+def load_shapes(src):
+    if isinstance(src, str):
+        df_dict = load_gtfs(src, subset=['shapes'])
+    elif isinstance(src, dict):
+        df_dict = src
+    else:
+        raise ValueError(
+            f"Data type not supported: {type(src)}")
+    
+    items = []
+    for shape_id, g in df_dict['shapes'].groupby('shape_id'):
+        g = g.sort_values('shape_pt_sequence')
+        coords = g[['shape_pt_lon', 'shape_pt_lat']].values
+
+        if len(coords) > 1:    
+            items.append({
+                'shape_id': shape_id,
+                'geom': shapely.geometry.LineString(coords)
+            })
+
+    return gpd.GeoDataFrame(
+        items, geometry='geom', crs="EPSG:4326")
+
+
+def save_gtfs(df_dict, filepath, ignore_required=False, overwrite=False):
     if not ignore_required and not all(key in df_dict.keys() 
                for key in REQUIRED_GTFS_FILES):
         raise ValueError("Not all required GTFS files in dictionary")
     
-    with ZipFile(filepath, "w") as zf:
-        for filekey, df in df_dict.items():
-            buffer = df.to_csv(index=False)
-            zf.writestr(filekey + ".txt", buffer)
+    if overwrite or not os.path.exists(filepath):
+        with ZipFile(filepath, "w") as zf:
+            for filekey, df in df_dict.items():
+                buffer = df.to_csv(index=False)
+                zf.writestr(filekey + ".txt", buffer)
+
+
+def _get_group_route_geometry(group):
+    counts = group['counts'].iloc[0]
+    X = group.sort_values(by='stop_sequence')[
+        ['stop_lon', 'stop_lat']
+    ].values
+    geom = shapely.geometry.LineString()
+    if len(X) > 2:
+        geom = shapely.geometry.LineString(X)
+
+    return pd.Series(
+        [counts, geom], 
+        index=['counts', 'geometry'])
 
 
 def load_routes_counts(filepath):
@@ -110,26 +150,13 @@ def load_routes_counts(filepath):
         df_stop_times[mask],
         how='left', on='trip_id')
     
-    def get_route_geometry(group):
-        counts = group['counts'].iloc[0]
-        X = group.sort_values(by='stop_sequence')[
-            ['stop_lon', 'stop_lat']
-        ].values
-        geom = shapely.geometry.LineString()
-        if len(X) > 2:
-            geom = shapely.geometry.LineString(X)
-
-        return pd.Series(
-            [counts, geom], 
-            index=['counts', 'geometry'])
-
     df_trip_shape = pd.merge(
         df_stop_times[['stop_id', 'route_id', 'stop_sequence', 'counts']], 
         df_stops[['stop_id', 'stop_lon', 'stop_lat']],
         how='left', on='stop_id')
     df_trip_geometry = df_trip_shape \
         .groupby('route_id') \
-        .apply(get_route_geometry)
+        .apply(_get_group_route_geometry)
     df_trip_geometry = df_trip_geometry.reset_index()
 
     df = pd.merge(
@@ -140,20 +167,46 @@ def load_routes_counts(filepath):
     return gpd.GeoDataFrame(
         df, geometry='geometry', crs="EPSG:4326")
 
-        
-def load_shapes(filepath):
-    df_dict = load_gtfs(filepath, subset=['shapes'])
+
+def filter_gtfs(df_dict, filter_geometry):
+    if isinstance(filter_geometry, list):
+        geom = shapely.geometry.box(*filter_geometry)
+    elif isinstance(filter_geometry, shapely.geometry.base.BaseGeometry):
+        geom = filter_geometry
+    else:
+        raise ValueError(
+            f"filter_geometry type {type(filter_geometry)} not supported!")
     
-    items = []
-    for shape_id, g in df_dict['shapes'].groupby('shape_id'):
-        g = g.sort_values('shape_pt_sequence')
-        coords = g[['shape_pt_lon', 'shape_pt_lat']].values
+    # Filter shapes
+    gdf_shapes = load_shapes(df_dict)
+    mask = gdf_shapes.within(geom)
+    gdf_shapes = gdf_shapes[mask]
 
-        if len(coords) > 1:    
-            items.append({
-                'shape_id': shape_id,
-                'geom': shapely.geometry.LineString(coords)
-            })
+    # Filter shapes.txt
+    shape_ids = gdf_shapes['shape_id'].values
+    mask = df_dict['shapes']['shape_id'].isin(shape_ids)
+    df_dict['shapes'] = df_dict['shapes'][mask]
 
-    return gpd.GeoDataFrame(
-        items, geometry='geom', crs="EPSG:4326")
+    # Filter trips.txt
+    mask = df_dict['trips']['shape_id'].isin(shape_ids)
+    df_dict['trips'] = df_dict['trips'][mask]
+
+    # Filter route.txt
+    route_ids = df_dict['trips']['route_id'].values
+    mask = df_dict['routes']['route_id'].isin(route_ids)
+    df_dict['routes'] = df_dict['routes'][mask]
+
+    # Filter agency.txt
+    agency_ids = df_dict['routes']['agency_id'].values
+    mask = df_dict['agency']['agency_id'].isin(agency_ids)
+    df_dict['agency'] = df_dict['agency'][mask]
+
+    # Filter stop_times.txt
+    trip_ids = df_dict['trips']['trip_id'].values
+    mask = df_dict['stop_times']['trip_id'].isin(trip_ids)
+    df_dict['stop_times'] = df_dict['stop_times'][mask]
+
+    # Filter stops.txt
+    stop_ids = df_dict['stop_times']['stop_id'].values
+    mask = df_dict['stops']['stop_id'].isin(stop_ids)
+    df_dict['stops'] = df_dict['stops'][mask]
