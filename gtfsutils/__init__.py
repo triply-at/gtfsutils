@@ -103,10 +103,17 @@ def _get_group_route_geometry(group):
         index=['counts', 'geometry'])
 
 
-def load_routes_counts(filepath):
-    df_dict = load_gtfs(filepath, subset=[
-        'agency', 'routes', 'trips', 'stops', 'stop_times'
-    ])
+def load_routes_counts(src):
+    if isinstance(src, str):
+        df_dict = load_gtfs(src, subset=[
+            'agency', 'routes', 'trips', 'stops', 'stop_times'
+        ])
+    elif isinstance(src, dict):
+        df_dict = src
+    else:
+        raise ValueError(
+            f"Data type not supported: {type(src)}")
+    
     df_trips = df_dict['trips']
     df_stops = df_dict['stops']
     df_stop_times = df_dict['stop_times']
@@ -210,3 +217,8 @@ def filter_gtfs(df_dict, filter_geometry):
     stop_ids = df_dict['stop_times']['stop_id'].values
     mask = df_dict['stops']['stop_id'].isin(stop_ids)
     df_dict['stops'] = df_dict['stops'][mask]
+
+    # Filter transfers.txt
+    mask = df_dict['transfers']['from_stop_id'].isin(stop_ids) \
+         & df_dict['transfers']['to_stop_id'].isin(stop_ids)
+    df_dict['transfers'] = df_dict['transfers'][mask]
