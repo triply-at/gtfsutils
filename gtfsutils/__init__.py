@@ -175,7 +175,7 @@ def load_routes_counts(src):
         df, geometry='geometry', crs="EPSG:4326")
 
 
-def filter_gtfs(df_dict, filter_geometry):
+def filter_gtfs(df_dict, filter_geometry, operation='within'):
     if isinstance(filter_geometry, list):
         geom = shapely.geometry.box(*filter_geometry)
     elif isinstance(filter_geometry, shapely.geometry.base.BaseGeometry):
@@ -186,7 +186,14 @@ def filter_gtfs(df_dict, filter_geometry):
     
     # Filter shapes
     gdf_shapes = load_shapes(df_dict)
-    mask = gdf_shapes.within(geom)
+    if operation == 'within':
+        mask = gdf_shapes.within(geom)
+    elif operation == 'intersects':
+        mask = gdf_shapes.intersects(geom)
+    else:
+        raise ValueError(
+            f"Operation {operation} not supported!")
+        
     gdf_shapes = gdf_shapes[mask]
 
     # Filter shapes.txt
@@ -219,6 +226,7 @@ def filter_gtfs(df_dict, filter_geometry):
     df_dict['stops'] = df_dict['stops'][mask]
 
     # Filter transfers.txt
-    mask = df_dict['transfers']['from_stop_id'].isin(stop_ids) \
-         & df_dict['transfers']['to_stop_id'].isin(stop_ids)
-    df_dict['transfers'] = df_dict['transfers'][mask]
+    if 'transfers' in df_dict:
+        mask = df_dict['transfers']['from_stop_id'].isin(stop_ids) \
+            & df_dict['transfers']['to_stop_id'].isin(stop_ids)
+        df_dict['transfers'] = df_dict['transfers'][mask]

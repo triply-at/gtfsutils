@@ -14,6 +14,10 @@ def main():
         dest='dst', help="Output filepath")
     parser.add_argument("--bounds", action='store',
         dest='bounds', help="Filter boundary")
+    parser.add_argument("-o", "--operation", action='store',
+        dest='operation', help="Filter operation (within, intersects)")
+    parser.add_argument("--overwrite", action='store_true',
+        dest='overwrite', help="Overwrite if exists")
     parser.add_argument('-v', '--verbose', action='store_true',
         dest='verbose', default=False,
         help="Verbose output")
@@ -36,13 +40,13 @@ def main():
 
     # Filter GTFS
     t = time.time()
-    filter_gtfs(df_dict, bounds)
+    filter_gtfs(df_dict, bounds, operation=args.operation)
     duration = time.time() - t
     logging.debug(f"Filtered {src_filepath} for {duration:.2f}s")
 
     # Save filtered GTFS
     t = time.time()
-    save_gtfs(df_dict, dst_filepath, ignore_required=True)
+    save_gtfs(df_dict, dst_filepath, ignore_required=True, overwrite=args.overwrite)
     duration = time.time() - t
     logging.debug(f"Saved {dst_filepath} for {duration:.2f}s")
 
