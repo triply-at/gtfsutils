@@ -2,7 +2,8 @@ import json
 import time
 import logging
 import argparse
-from . import load_gtfs, save_gtfs, filter_gtfs
+from . import load_gtfs, save_gtfs
+from .filter import filter_gtfs
 
 
 def main():
