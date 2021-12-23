@@ -17,7 +17,28 @@ REQUIRED_GTFS_FILES = [
     'stop_times',
     #'shapes',
     #'frequencies',
-    'feedinfo'
+    #'feedinfo'
+]
+
+# https://developers.google.com/transit/gtfs/reference
+AVAILABLE_GTFS_FILES = [
+    "agency",
+    "stops",
+    "routes",
+    "trips",
+    "stop_times",
+    "calendar",
+    "calendar_dates",
+    "fare_attributes",
+    "fare_rules",
+    "shapes",
+    "frequencies",
+    "transfers",
+    "pathways",
+    "levels",
+    "feed_info",
+    "translations",
+    "attributions"
 ]
 
 ROUTE_TYPE_MAP = {
@@ -29,6 +50,15 @@ ROUTE_TYPE_MAP = {
     5: 'cableCar',
     6: 'gondola',
     7: 'funicular'
+}
+
+COLUMNS_DEPENDENCY_DICT = {
+    'agency':   ('agency_id',  ['routes']),
+    'routes':   ('route_id',   ['trips']),
+    'trips':    ('trip_id',    ['stop_times']),
+    'stops':    ('stop_id',    ['stop_times']),
+    'calendar': ('service_id', ['calendar_dates']),
+    'shapes':   ('shape_id',   ['trips'])
 }
 
 
@@ -230,3 +260,20 @@ def filter_gtfs(df_dict, filter_geometry, operation='within'):
         mask = df_dict['transfers']['from_stop_id'].isin(stop_ids) \
             & df_dict['transfers']['to_stop_id'].isin(stop_ids)
         df_dict['transfers'] = df_dict['transfers'][mask]
+
+
+def get_bounding_box(src):
+    if isinstance(src, str):
+        df_dict = load_gtfs(src, subset=['stops'])
+    elif isinstance(src, dict):
+        df_dict = src
+    else:
+        raise ValueError(
+            f"Data type not supported: {type(src)}")
+
+    return [
+        df_dict['stops']['stop_lon'].min(),
+        df_dict['stops']['stop_lat'].min(),
+        df_dict['stops']['stop_lon'].max(),
+        df_dict['stops']['stop_lat'].max()
+    ]
