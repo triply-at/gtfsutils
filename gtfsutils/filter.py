@@ -22,9 +22,12 @@ def filter_gtfs(df_dict, filter_geometry, operation='within'):
             f"Operation {operation} not supported!")
         
     gdf_shapes = gdf_shapes[mask]
-
-    # Filter shapes.txt
     shape_ids = gdf_shapes['shape_id'].values
+    filter_shape_ids(df_dict, shape_ids)
+
+
+def filter_shape_ids(df_dict, shape_ids):
+    # Filter shapes.txt
     mask = df_dict['shapes']['shape_id'].isin(shape_ids)
     df_dict['shapes'] = df_dict['shapes'][mask]
 
