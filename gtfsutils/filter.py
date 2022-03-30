@@ -1,9 +1,12 @@
 import shapely
+import numpy as np
 from . import load_shapes
 
 
 def filter_gtfs(df_dict, filter_geometry, operation='within'):
-    if isinstance(filter_geometry, list):
+    if isinstance(filter_geometry, list) or isinstance(filter_geometry, np.ndarray):
+        if len(filter_geometry) != 4:
+            raise ValueError("Wrong dimension of bounds")
         geom = shapely.geometry.box(*filter_geometry)
     elif isinstance(filter_geometry, shapely.geometry.base.BaseGeometry):
         geom = filter_geometry
