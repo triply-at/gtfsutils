@@ -9,12 +9,9 @@ def _get_group_route_geometry(group):
     X = group.sort_values(by='stop_sequence')[
         ['stop_lon', 'stop_lat']
     ].values
-    geom = shapely.geometry.LineString()
-    if len(X) > 2:
-        geom = shapely.geometry.LineString(X)
-
+    coords = X if len(X) else []
     return pd.Series(
-        [counts, geom], 
+        [counts, coords],
         index=['counts', 'geometry'])
 
 
@@ -79,6 +76,8 @@ def load_routes_counts(src):
     df_trip_geometry = df_trip_shape \
         .groupby('route_id') \
         .apply(_get_group_route_geometry)
+    df_trip_geometry['geometry'] = df_trip_geometry['geometry'].apply(
+        shapely.geometry.LineString)
     df_trip_geometry = df_trip_geometry.reset_index()
 
     df = pd.merge(

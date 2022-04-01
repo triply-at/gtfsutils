@@ -1,5 +1,4 @@
 import os
-from numpy.lib.arraysetops import isin
 import pandas as pd
 import shapely.geometry
 import geopandas as gpd
