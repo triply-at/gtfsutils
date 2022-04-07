@@ -91,6 +91,9 @@ def load_shapes(src):
         raise ValueError(
             f"Data type not supported: {type(src)}")
     
+    if 'shapes' not in df_dict:
+        raise Exception("shapes.txt not found in GTFS")
+
     items = []
     for shape_id, g in df_dict['shapes'].groupby('shape_id'):
         g = g.sort_values('shape_pt_sequence')
