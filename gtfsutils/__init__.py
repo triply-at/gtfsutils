@@ -5,7 +5,7 @@ import shapely.geometry
 import geopandas as gpd
 from zipfile import ZipFile
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 
 REQUIRED_GTFS_FILES = [
