@@ -4,7 +4,8 @@ from . import load_shapes
 
 
 def filter_by_geometry(df_dict, filter_geometry, operation='within'):
-    if isinstance(filter_geometry, list) or isinstance(filter_geometry, np.ndarray):
+    if isinstance(filter_geometry, list) or \
+       isinstance(filter_geometry, np.ndarray):
         if len(filter_geometry) != 4:
             raise ValueError("Wrong dimension of bounds")
         geom = shapely.geometry.box(*filter_geometry)
@@ -30,6 +31,10 @@ def filter_by_geometry(df_dict, filter_geometry, operation='within'):
 
 
 def filter_by_shape_ids(df_dict, shape_ids):
+    if not isinstance(shape_ids, list) and \
+       not isinstance(shape_ids, np.ndarray):
+        shape_ids = [shape_ids]
+
     # Filter shapes.txt
     mask = df_dict['shapes']['shape_id'].isin(shape_ids)
     df_dict['shapes'] = df_dict['shapes'][mask]
@@ -66,6 +71,10 @@ def filter_by_shape_ids(df_dict, shape_ids):
 
 
 def filter_by_agency_ids(df_dict, agency_ids):
+    if not isinstance(agency_ids, list) and \
+       not isinstance(agency_ids, np.ndarray):
+        agency_ids = [agency_ids]
+
     # Filter agency.txt
     mask = df_dict['agency']['agency_id'].isin(agency_ids)
     df_dict['agency'] = df_dict['agency'][mask]

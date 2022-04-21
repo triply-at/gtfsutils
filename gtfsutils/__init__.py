@@ -1,4 +1,5 @@
 import os
+import datetime
 import pandas as pd
 import shapely.geometry
 import geopandas as gpd
@@ -136,3 +137,49 @@ def get_bounding_box(src):
         df_dict['stops']['stop_lon'].max(),
         df_dict['stops']['stop_lat'].max()
     ]
+
+
+def get_calendar_date_range(src):
+    if isinstance(src, str):
+        df_dict = load_gtfs(src, subset=['calendar'])
+    elif isinstance(src, dict):
+        df_dict = src
+    else:
+        raise ValueError(
+            f"Data type not supported: {type(src)}")
+
+    if "calendar" in df_dict:
+        min_date = min(
+            df_dict['calendar']['start_date'].min(),
+            df_dict['calendar']['end_date'].min())
+        max_date = max(
+            df_dict['calendar']['start_date'].max(),
+            df_dict['calendar']['end_date'].max())
+        min_date = datetime.datetime.strptime(str(min_date), "%Y%m%d")
+        max_date = datetime.datetime.strptime(str(max_date), "%Y%m%d")
+    else:
+        raise ValueError("calendar.txt missing")
+    
+    return min_date, max_date
+
+
+def print_info(src):
+    if isinstance(src, str):
+        df_dict = load_gtfs(src)
+    elif isinstance(src, dict):
+        df_dict = src
+    else:
+        raise ValueError(
+            f"Data type not supported: {type(src)}")
+
+    print("\nGTFS files:")
+    for key in sorted(df_dict.keys()):
+        print(f"  {key + '.txt':<20s} {len(df_dict[key]):12,d} rows")
+
+    min_date, max_date = get_calendar_date_range(df_dict)
+    print("\nCalender date range:\n  " \
+        f"{min_date.strftime('%d.%m.%Y')} - "\
+        f"{max_date.strftime('%d.%m.%Y')}")
+
+    bounds = get_bounding_box(df_dict)
+    print(f"\nBounding box:\n  {bounds}\n")
